@@ -86,7 +86,7 @@ namespace DotNetXMLConverter
         static void Main()
         {
            string path = GetFolderPath();
-            string[] files = System.IO.Directory.GetFiles(path);
+           string[] files = System.IO.Directory.GetFiles(path);
 
             //Console.WriteLine(path);
 
@@ -97,16 +97,16 @@ namespace DotNetXMLConverter
                     XmlDocument document = new XmlDocument();
                     string text = File.ReadAllText(filePath);
 
-                    //Print(filePath);
-                    
-                    Print(String.Concat("BEGIN READ OF  ", filePath));
+                    Print(filePath);
+
+                    Print("BEGIN READ OF  " + filePath);
                     LineBreak();
                     document.Load(filePath);
 
                     GetTextBreakContent(document);
                     GetEventOptionContent(document);
 
-                    Print(String.Concat("END READ OF  ", filePath));
+                    Print("END READ OF  " + filePath);
                     LineBreak();
                 }
             }
