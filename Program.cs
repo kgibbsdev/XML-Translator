@@ -1,4 +1,5 @@
 ﻿using CsvHelper;
+using CsvHelper.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -15,45 +16,73 @@ namespace DotNetXMLConverter
     {
         public string UID { get; set; }
         public string FileName { get; set; }
-        public string OriginalText { get; set; }
-      
+        public string TagName { get; set; }
+        public string Original { get; set; }
+        public string Translated { get; set; }
 
-        public Record(string _uid,  string _fileName, string _originalText)
+        public Record()
+        {
+
+        }
+
+        public Record(string _uid, string _fileName, string _tagName, string _original)
         {
             UID = _uid;
             FileName = _fileName;
-            OriginalText = _originalText;
+            TagName = _tagName;
+            Original = _original;
+        }
+    }
+
+    public sealed class RecordMap : ClassMap<Record>
+    {
+        public RecordMap()
+        {
+            AutoMap(CultureInfo.InvariantCulture);
+
+            //TODO: Change this to a variable
+            Map(m => m.Translated).Name("Translated");
         }
     }
 
     class ReadFromFile
     {
-        public static string csvFilePath;
-        public static string csvDirectoryPath;
+        public static string ToBeTranslatedFilePath;
+        public static string ToBeTranslatedDirectoryPath;
+        public static string TranslatedDirectoryPath;
 
         static List<Record> recordList = new List<Record>();
-        public static void CreateCSV(string path)
+        static List<Record> importedRecordsList = new List<Record>();
+        public static void SetupDirectories(string path)
         {
-            Print("path: " + path);
-            Print("Checking " + path + @" for csvtest.csv.");
+            ToBeTranslatedDirectoryPath = path + @"CSVs\To Be Translated";
+            ToBeTranslatedFilePath = path + @"CSVs\To Be Translated\csvtest.csv";
+            TranslatedDirectoryPath = path + @"CSVs\Translated\";
 
-            csvDirectoryPath = path + @"CSVs";
-            csvFilePath = path + @"\CSVs\csvtest.csv";
-
-            if (!Directory.Exists(csvDirectoryPath))
+            if (!Directory.Exists(ToBeTranslatedDirectoryPath))
             {
-                Print("Creating CSV directory.");
-                Directory.CreateDirectory(csvDirectoryPath);
+                Print("Creating 'To Be Translated' directory.");
+                Directory.CreateDirectory(ToBeTranslatedDirectoryPath);
             }
             else
             {
-                Print("CSV Directory already found");
+                Print("To Be Translated Directory already found.");
             }
 
-            if (!File.Exists(path + @"\CSVs\csvtest.csv"))
+            if (!Directory.Exists(TranslatedDirectoryPath))
+            {
+                Print("Creating 'Translated' directory.");
+                Directory.CreateDirectory(TranslatedDirectoryPath);
+            }
+            else
+            {
+                Print("Translated Directory already found.");
+            }
+
+            if (!File.Exists(path + @"CSVs\To Be Translated\csvtest.csv"))
             {
                 Print("Creating CSV File.");
-                var csvFile = File.Create(csvFilePath);
+                var csvFile = File.Create(ToBeTranslatedFilePath);
                 csvFile.Close();
             }
             else
@@ -69,6 +98,8 @@ namespace DotNetXMLConverter
             XmlNode root = document.DocumentElement;
             textBreakNodeList = document.GetElementsByTagName("text_break");
 
+            string textBreakTag = "text_break";
+
             for (int j = 0; j < textBreakNodeList.Count; j++)
             {
                 //Skip to the last node within the Text_Break tag
@@ -83,7 +114,7 @@ namespace DotNetXMLConverter
                 //If the text_break does not have any content, skip adding it to the list of records.
                 if (textBreakContent != "")
                 {
-                    Record newRecord = new Record(textBreakUID, fileName, textBreakContent);
+                    Record newRecord = new Record(textBreakUID, fileName, textBreakTag, textBreakContent);
                     recordList.Add(newRecord);
                 }
             }
@@ -99,7 +130,11 @@ namespace DotNetXMLConverter
             for (int i = 0; i < eventOptionNodeList.Count; i++)
             {
                 string optionContent = eventOptionNodeList[i].FirstChild.InnerText;
+                string hiddenMessageContent = eventOptionNodeList[i].FirstChild.NextSibling.InnerText;
 
+                string optionTag = "option_text";
+                string hiddenMessageTag = "hidden_message_text";
+                
                 string eventOptionUID;
                 //There is one case where the Last Child of the event_option tag is NOT a UID
                 //Therefore, If the Lastchild is empty, check the previous sibling.
@@ -115,7 +150,13 @@ namespace DotNetXMLConverter
                 //If the option_text does not have any content, skip adding it to the list of records.
                 if (optionContent != "")
                 {
-                    Record newRecord = new Record(eventOptionUID, fileName, optionContent );
+                    Record newRecord = new Record(eventOptionUID, fileName, optionTag, optionContent);
+                    recordList.Add(newRecord);
+                }
+
+                if(hiddenMessageContent != "")
+                {
+                    Record newRecord = new Record(eventOptionUID, fileName, hiddenMessageTag, hiddenMessageContent);
                     recordList.Add(newRecord);
                 }
             }
@@ -123,10 +164,39 @@ namespace DotNetXMLConverter
 
         public static void WriteRecordsToCSV()
         {
-            using (var writer = new StreamWriter(csvFilePath))
+            using (var writer = new StreamWriter(ToBeTranslatedFilePath))
             using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
             {
                 csv.WriteRecords(recordList);
+            }
+        }
+
+        public static void ReadRecordsFromCSV()
+        {
+            Print("Reading from CSV");
+            string[] translatedFiles = System.IO.Directory.GetFiles(TranslatedDirectoryPath);
+
+            foreach (string filePath in translatedFiles)
+            {
+                Print("FILEPATH: " + filePath);
+                if (filePath.EndsWith(".csv"))
+                {
+                    using (var reader = new StreamReader(filePath))
+                    using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
+                    {
+                        csv.Configuration.RegisterClassMap<RecordMap>();
+                        csv.Configuration.Delimiter = ",";
+
+                        var recordsEnumerable = csv.GetRecords<Record>();
+
+                        importedRecordsList = recordsEnumerable.ToList();
+
+                        //for (int i = 0; i < importedRecordsList.Count; i++)
+                        //{
+                        //    Print(importedRecordsList[i].UID);
+                        //}
+                    }
+                }
             }
         }
 
@@ -144,23 +214,105 @@ namespace DotNetXMLConverter
                 option = Console.ReadKey().Key;
             }
 
-            string path = GetFolderPath();
-            string[] files = System.IO.Directory.GetFiles(path);
-            CreateCSV(GetFolderPath());
+            SetupDirectories(GetFolderPath());
 
-            foreach (string filePath in files)
+            if (option == ConsoleKey.D1)
             {
-                if (filePath.EndsWith(".xml"))
-                {
-                    XmlDocument document = new XmlDocument();
-                    string text = File.ReadAllText(filePath);
-                    string fileName = Path.GetFileName(filePath);
-                    document.Load(filePath);
+                string path = GetFolderPath();
+                string[] files = System.IO.Directory.GetFiles(path);
 
-                    GetTextBreakContent(document, fileName);
-                    GetEventOptionContent(document, fileName);
-                    WriteRecordsToCSV();
+                foreach (string filePath in files)
+                {
+                    if (filePath.EndsWith(".xml"))
+                    {
+                        XmlDocument document = new XmlDocument();
+                        string text = File.ReadAllText(filePath);
+                        string fileName = Path.GetFileName(filePath);
+                        document.Load(filePath);
+
+                        GetTextBreakContent(document, fileName);
+                        GetEventOptionContent(document, fileName);
+                        WriteRecordsToCSV();
+                    }
                 }
+            }
+
+            else if (option == ConsoleKey.D2)
+            {
+                ReadRecordsFromCSV();
+
+                string path = GetFolderPath();
+                string[] files = System.IO.Directory.GetFiles(path);
+
+                foreach (string filePath in files)
+                {
+                    if (filePath.EndsWith(".xml"))
+                    {
+                        XmlDocument document = new XmlDocument();
+                        string text = File.ReadAllText(filePath);
+                        string fileName = Path.GetFileName(filePath);
+                        document.Load(filePath);
+
+                        XmlNodeList uidNodeList;
+                        XmlNode root = document.DocumentElement;
+                        uidNodeList = document.GetElementsByTagName("uid");
+
+                        foreach (Record r in importedRecordsList)
+                        {
+                            if (fileName == r.FileName)
+                            {
+                                for (int i = 0; i < uidNodeList.Count; i++)
+                                {
+                                    if (uidNodeList[i].InnerText == r.UID)
+                                    {
+                                        if (uidNodeList[i].ParentNode.Name.ToLower() == "text_break")
+                                        {
+                                            if (r.Translated != "")
+                                            {
+                                                uidNodeList[i].ParentNode.FirstChild.InnerText = r.Translated;
+                                            }
+                                            else
+                                            {
+                                                //uidNodeList[i].ParentNode.FirstChild.InnerText = "Translated Text Break";
+                                            }
+                                            
+                                        }
+                                        else if (uidNodeList[i].ParentNode.Name.ToLower() == "event_option")
+                                        {
+                                            if(r.TagName == "option_text")
+                                            {
+                                                if(r.Translated != "")
+                                                {
+                                                    uidNodeList[i].ParentNode.FirstChild.InnerText = r.Translated;
+                                                }
+                                                else
+                                                {
+                                                    //uidNodeList[i].ParentNode.FirstChild.InnerText = "Translated Option Text";
+                                                }
+                                                
+                                            }
+                                            else if(r.TagName == "hidden_message_text")
+                                            {
+                                                if(r.Translated != "")
+                                                {
+                                                    uidNodeList[i].ParentNode.FirstChild.NextSibling.InnerText = r.Translated;
+                                                }
+                                                else
+                                                {
+                                                    //uidNodeList[i].ParentNode.FirstChild.InnerText = "Translated Hidden Message Text";
+                                                }
+
+                                            }
+                                        }
+                                    }
+                                }
+
+                                document.Save(filePath);
+                            }
+                        }
+                    }
+                }
+
             }
 
             Print("Done.");
