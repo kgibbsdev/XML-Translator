@@ -22,7 +22,7 @@ namespace DotNetXMLConverter
 
         public Record()
         {
-
+            //Empty Constructor Needed for CSVHelper
         }
 
         public Record(string _uid, string _fileName, string _tagName, string _original)
@@ -56,7 +56,7 @@ namespace DotNetXMLConverter
         public static void SetupDirectories(string path)
         {
             ToBeTranslatedDirectoryPath = path + @"CSVs\To Be Translated";
-            ToBeTranslatedFilePath = path + @"CSVs\To Be Translated\csvtest.csv";
+            ToBeTranslatedFilePath = path + @"CSVs\To Be Translated\" + "ToBeTranslated" + DateTime.Now.ToString("MM-dd-yyyy-hh-mm-ss") + ".csv";
             TranslatedDirectoryPath = path + @"CSVs\Translated\";
 
             if (!Directory.Exists(ToBeTranslatedDirectoryPath))
@@ -79,7 +79,7 @@ namespace DotNetXMLConverter
                 Print("Translated Directory already found.");
             }
 
-            if (!File.Exists(path + @"CSVs\To Be Translated\csvtest.csv"))
+            if (!File.Exists(ToBeTranslatedFilePath))
             {
                 Print("Creating CSV File.");
                 var csvFile = File.Create(ToBeTranslatedFilePath);
@@ -164,6 +164,7 @@ namespace DotNetXMLConverter
 
         public static void WriteRecordsToCSV()
         {
+            //
             using (var writer = new StreamWriter(ToBeTranslatedFilePath))
             using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
             {
@@ -184,22 +185,21 @@ namespace DotNetXMLConverter
                     using (var reader = new StreamReader(filePath))
                     using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
                     {
+                        //Register custom CSV mapping
                         csv.Configuration.RegisterClassMap<RecordMap>();
+                        
+                        //Set delimiter because these can differ per system
                         csv.Configuration.Delimiter = ",";
 
                         var recordsEnumerable = csv.GetRecords<Record>();
 
                         importedRecordsList = recordsEnumerable.ToList();
-
-                        //for (int i = 0; i < importedRecordsList.Count; i++)
-                        //{
-                        //    Print(importedRecordsList[i].UID);
-                        //}
                     }
                 }
             }
         }
 
+        //Driver function
         static void Main()
         {
             PrintInstructions();
@@ -216,6 +216,7 @@ namespace DotNetXMLConverter
 
             SetupDirectories(GetFolderPath());
 
+            //If the user presses the '1' key.
             if (option == ConsoleKey.D1)
             {
                 string path = GetFolderPath();
@@ -237,6 +238,7 @@ namespace DotNetXMLConverter
                 }
             }
 
+            //If the user presses the '2' key.
             else if (option == ConsoleKey.D2)
             {
                 ReadRecordsFromCSV();
@@ -273,7 +275,7 @@ namespace DotNetXMLConverter
                                             }
                                             else
                                             {
-                                                //uidNodeList[i].ParentNode.FirstChild.InnerText = "Translated Text Break";
+                                                //do nothing
                                             }
                                             
                                         }
@@ -287,7 +289,7 @@ namespace DotNetXMLConverter
                                                 }
                                                 else
                                                 {
-                                                    //uidNodeList[i].ParentNode.FirstChild.InnerText = "Translated Option Text";
+                                                    //do nothing
                                                 }
                                                 
                                             }
@@ -299,7 +301,7 @@ namespace DotNetXMLConverter
                                                 }
                                                 else
                                                 {
-                                                    //uidNodeList[i].ParentNode.FirstChild.InnerText = "Translated Hidden Message Text";
+                                                    //do nothing
                                                 }
 
                                             }
