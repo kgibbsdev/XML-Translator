@@ -1,4 +1,4 @@
-# XML-Translator
+# XML-Translator for Dreaming Door Studios
 
 1.) Place the "_XML-Translator" folder into the same directory as the XML files you would like to add to a .csv file. 
 
